@@ -1,0 +1,9 @@
+salesforce:
+  password: "![n8EerUP4uxdyzzth+oxmUbZjGL7bmDo1lOOXVDeZ20M=]"
+  securityToken: "![zetqs5E/N1gTqWmLE+9rplg7uhW8o99rXshrmM3rvIY=]"
+  
+slack:
+  consumerSecret: "![GqqTLl5/gX85U1V4f6lO+TzgI04jIhYq5PPbNOwFzGHjK+2GxXkViAnvZsuBzqjq]"
+  
+twilio:
+  password: "![fkK1k74RCOr6Lhrd8kUxQCqaAFd8y0tOmWCRbXwU4PtU9hh6Cx19veIfTykL6S2I]"

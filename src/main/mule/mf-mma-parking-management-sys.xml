@@ -1,0 +1,133 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:twilio="http://www.mulesoft.org/schema/mule/twilio" xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns:slack="http://www.mulesoft.org/schema/mule/slack"
+	xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/slack http://www.mulesoft.org/schema/mule/slack/current/mule-slack.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/twilio http://www.mulesoft.org/schema/mule/twilio/current/mule-twilio.xsd">
+	
+	<sub-flow name="mf-mma-parking-management-sysSub_Flow" doc:id="18bc2896-9c80-42f0-a04b-88be0d47233a">
+		<ee:transform doc:name="jsontoSalesforce payload" doc:id="5410fbdc-cadf-4dba-8aaa-a643df8ce8d3">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/java
+---
+[{
+    "parking_slot__r": {
+    	"slot_identifier__c": payload.slotNumber
+    	},
+    ("inDateTime__c": (payload.dateTime as DateTime) >> "GMT") if payload.occupany,
+    ("outDateTime__c": (payload.dateTime as DateTime) >> "GMT") if !payload.occupany,
+    "occupany__c": payload.occupany,
+    "carNumber__c": payload.carNumber,
+    "uniqueIdentifier__c": "parking_identifier_" ++ payload.carNumber,
+    "Phone_Number__c": payload.phone,
+    "Email_Address__c": payload.email
+}]]]></ee:set-payload>
+			</ee:message>
+			<ee:variables>
+				<ee:set-variable variableName="input"><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-variable>
+			</ee:variables>
+		</ee:transform>
+		<salesforce:query doc:name="Query Parking Reservation" doc:id="ac57c64b-9961-449e-8284-dea68fb48672" config-ref="Salesforce_Config" target="queryParkingReservation">
+			<salesforce:salesforce-query><![CDATA[SELECT Id,slot_start_time__c,slot_end_time__c,parking_slot__c,carNumber__c FROM parking_slot_reservation__c where parking_slot__r.slot_identifier__c = ':slotIdentifier']]></salesforce:salesforce-query>
+			<salesforce:parameters><![CDATA[#[{
+	slotIdentifier: vars.'input'.slotNumber
+}]]]></salesforce:parameters>
+		</salesforce:query>
+		<choice doc:name="Choice" doc:id="951756fd-9f0c-431e-bc30-4f8f2c08c286">
+			<when expression="#[(!((sizeOf(vars.queryParkingReservation) &gt; 0) &#10;and (vars.'input'.dateTime &gt; vars.queryParkingReservation[0].slot_start_time__c) &#10;and (vars.'input'.dateTime &lt; vars.queryParkingReservation[0].slot_end_time__c))) &#10;or (vars.queryParkingReservation[0].carNumber__c matches vars.'input'.carNumber)]">
+				<salesforce:upsert doc:name="Upsert" doc:id="c6fe3627-6baa-4959-8e76-ecb4ebf32604" config-ref="Salesforce_Config" objectType="parking__c" externalIdFieldName="uniqueIdentifier__c" />
+				<ee:transform doc:name="Transform Message" doc:id="7cd8fa2c-140e-4b69-ad19-f015278d7dca">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+if(payload.successful default false)
+    {
+        "status": "success",
+        "message": if (vars.'input'.occupany default true)"Parking slot confirmed" else "Car removed from parking slot."
+    }
+else 
+    {
+        "status": "failure",
+        "message": payload.items.message[0]
+    }]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+				<async doc:name="Async" doc:id="76ef56bc-0fbf-4395-8815-74d4cc17f760">
+					<flow-ref doc:name="sf-send-message-twilio" doc:id="2fa1d932-86bc-4a08-a9d1-0fe9a25ffa75" name="sf-send-message-twilio" />
+				</async>
+			
+</when>
+			<otherwise>
+				<ee:transform doc:name="Transform Message" doc:id="ef84c02f-5204-498b-8b05-c868bf9582d2">
+					<ee:message>
+						<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+{
+    "status": "failure",
+    "message": "Slot is reserved"
+}]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+			</otherwise>
+		</choice>
+	</sub-flow>
+	<sub-flow name="slack-integration" doc:id="c94d9e8f-5329-4636-8f91-facb1c4ac72e">
+		<logger level="INFO" doc:name="slack flow started" doc:id="4997fd15-5472-4e56-8e95-7aa6eb04e027" message="slack flow started" />
+		<slack:create-chatpost-message doc:name="Send Message to slack" doc:id="8c2391e6-8d9a-4e9a-88a1-be0a8dbcd1c9" config-ref="Slack_Connector_Config" />
+		<ee:transform doc:name="get final payload as JSON" doc:id="0ac651b2-87ef-4b01-8be7-ea36f2ea7502">
+			<ee:message>
+				<ee:set-payload><![CDATA[%dw 2.0
+output application/json
+---
+payload]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<logger level="INFO" doc:name="print final payload result" doc:id="65111883-ac3b-4e39-aa6c-72bb529595e1" message="slack flow ended" />
+	</sub-flow>
+	<sub-flow name="sf-send-message-twilio" doc:id="c48fce39-f2ac-417c-a44f-9e1a12b9121a" >
+		<ee:transform doc:name="Transform Message" doc:id="51aaf2d6-4704-4a64-a2c2-9f8f0fc51d67">
+						<ee:message>
+							<ee:set-payload><![CDATA[%dw 2.0
+output application/x-www-form-urlencoded
+fun formatMobile(item)= if(item contains "+91") (item default '') else ("+91" ++ (item default ''))
+var body= if (vars.'input'.occupany default false)
+			(((("You car {carNumber} has successfully checked in to slot {slotIdentifier} at {inDateTime}") replace "{carNumber}" with (vars.'input'.carNumber default '')) replace "{slotIdentifier}" with (vars.'input'.slotNumber default '')) replace "{inDateTime}" with (vars.'input'.dateTime default ''))
+		  else
+		  	(((("You car {carNumber} has successfully checked out of slot {slotIdentifier} at {outDateTime}") replace "{carNumber}" with (vars.'input'.carNumber default '')) replace "{slotIdentifier}" with (vars.'input'.slotNumber default '')) replace "{outDateTime}" with (vars.'input'.dateTime default ''))
+---
+{
+    "From": "whatsapp:+14155238886",
+    "To": "whatsapp:" ++ formatMobile(vars.'input'.phone),
+    "Body": body
+}]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+		<try doc:name="Try" doc:id="d14bb33b-7e77-4d32-aa0b-e0df0a88a321" >
+			<twilio:create20100401-accounts-messagesjson-by-account-sid doc:name="Create Message" doc:id="9f53cd2b-cad2-4218-a4bb-872666c6e0e1" config-ref="Twilio_Connector_Config" accountSid="${twilio.username}" />
+			<logger level="INFO" doc:name="Success Logger" doc:id="b2865bbd-a9c6-49ad-85de-7de2f472b194" message="Whatsapp notification sent successfully." />
+			<error-handler >
+				<on-error-continue enableNotifications="true" logException="true" doc:name="On Error Continue" doc:id="d3308753-e2c7-4359-93b4-23b1ce36b150" type="ANY">
+					<ee:transform doc:name="Transform Message" doc:id="88acfc42-b9ff-42a0-a86c-9ecad771c54f" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+error]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+					<logger level="INFO" doc:name="Logger" doc:id="cadeb498-8f46-4464-91ea-f3eb1a500382" message="#[payload]"/>
+				</on-error-continue>
+			</error-handler>
+		</try>
+	</sub-flow>
+</mule>

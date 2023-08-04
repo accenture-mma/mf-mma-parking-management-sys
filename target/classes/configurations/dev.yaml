@@ -1,0 +1,51 @@
+httpListener:
+  host: "0.0.0.0"
+  port: "8081"
+  readTimeout: "60"
+  basePath: "/mf-mma-parking-management-sys/v1/*"
+  reconnection:
+    frequency: "2000"
+    attempts: "5"
+
+api:
+  Id: "18786336"
+
+salesforce:
+  username: "mulesoft.integrationuser@mailinator.com"
+  authUrl: "https://login.salesforce.com/services/Soap/u/55.0"
+  connection:
+    ttl: "30"
+    maxEntry: "50"
+    timeout: "60"
+  reconnection:
+    frequency: "2000"
+    attempts: "5"
+  login:
+    timeout: "30"
+    
+slack:
+  baseUri: "https://slack.com/api"
+  consumerKey: "5440328606724.5557041964225"
+  authUrl: "https://slack.com/oauth/v2/authorize"
+  tokenUrl: "https://slack.com/api/oauth.v2.access"
+  scopes: "chat:write"
+  oauthCallbackUrl: "/callback"
+  oauthAuthUrl: "/authorize"
+  oauthExCallbackUrl: "https://mf-mma-parking-management-sys-7m8v7x.5sc6y6-3.usa-e2.cloudhub.io/callback"
+  connection:
+    timeout: "60"
+    idleTimeout: "30"
+  reconnection:
+    frequency: "2000"
+    attempts: "5"
+  response:
+    timeout: "60"
+    
+twilio:
+  username: "ACc06e5bca852edbbb687fe7f9b7499901"
+  baseUri: "https://api.twilio.com"
+  reconnection:
+    frequency: "2000"
+    attempts: "5"
+  connection:
+    timeout: "60"

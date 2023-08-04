@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce"
+	xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns="http://www.mulesoft.org/schema/mule/core"
+	xmlns:doc="http://www.mulesoft.org/schema/mule/documentation"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd">
+	<flow name="post:\mma\park:application\json:mf-mma-parking-management-sys-config">
+        <flow-ref doc:name="Flow Reference mf-mma-parking-management-sysSub_Flow" doc:id="9451c635-f2f2-422b-b69d-99ecb126e663" name="mf-mma-parking-management-sysSub_Flow"/>
+    </flow>
+	<flow name="post:\mma\slack:application\json:mf-mma-parking-management-sys-config">
+		<salesforce:replay-channel-listener doc:name="Replay channel listener" doc:id="7e3ca06b-990e-4934-84f2-8c4ea445a4f1" config-ref="Salesforce_Config" streamingChannel="/event/updateSlotStatus__e" replayOption="ONLY_NEW"/>
+		<ee:transform doc:name="Transform Message" doc:id="e22b3bfb-2066-4131-89e7-38c755da0979" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+if(!isEmpty(payload.data))
+	{
+		channel: payload.data.payload.slackChannelName__c,
+		text: payload.data.payload.message__c
+	}
+else
+	{
+		channel: payload.channel,
+		text: payload.text
+	}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<flow-ref doc:name="Flow Reference mf-mma-parking-management-sysSub_Flow" doc:id="e24f9772-b6bf-4567-9d78-256fe6e9a025" name="slack-integration"/>
+    </flow>
+</mule>

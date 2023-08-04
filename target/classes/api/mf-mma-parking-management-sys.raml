@@ -1,0 +1,45 @@
+#%RAML 1.0
+title: mf-mma-parking-management-sys
+description: The system API to connect with salesforce
+version: 1.0.0
+baseUri: http://localhost:8091/v1
+
+mediaType: 
+  - application/json
+protocols:
+  - HTTPS
+  
+traits:
+  client-id-required:
+    headers:
+      client_id:
+        type: string
+      client_secret:
+        type: string
+
+
+/mma:
+  /park:  
+    post:
+      is : [client-id-required]
+      description: Data received from IOT device
+      body:
+        application/json:
+          example: !include examples/post_mma_parking_example.json
+      responses:
+        200:
+          description: Success
+          body:
+            application/json:
+              example: !include examples/post_mma_parking_response.json
+              
+  /available-slots:
+    get:
+      is : [client-id-required]
+      description: Check slot status
+      responses:
+        200:
+          body:
+            application/json:
+             
+            

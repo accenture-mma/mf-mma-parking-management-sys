@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:twilio="http://www.mulesoft.org/schema/mule/twilio"
+	xmlns:slack="http://www.mulesoft.org/schema/mule/slack"
+	xmlns:tls="http://www.mulesoft.org/schema/mule/tls"
+	xmlns:secure-properties="http://www.mulesoft.org/schema/mule/secure-properties" xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce"
+	xmlns:apikit="http://www.mulesoft.org/schema/mule/mule-apikit"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns:api-gateway="http://www.mulesoft.org/schema/mule/api-gateway" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/mule-apikit http://www.mulesoft.org/schema/mule/mule-apikit/current/mule-apikit.xsd 
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd 
+http://www.mulesoft.org/schema/mule/api-gateway http://www.mulesoft.org/schema/mule/api-gateway/current/mule-api-gateway.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/secure-properties http://www.mulesoft.org/schema/mule/secure-properties/current/mule-secure-properties.xsd
+http://www.mulesoft.org/schema/mule/tls http://www.mulesoft.org/schema/mule/tls/current/mule-tls.xsd
+http://www.mulesoft.org/schema/mule/slack http://www.mulesoft.org/schema/mule/slack/current/mule-slack.xsd
+http://www.mulesoft.org/schema/mule/twilio http://www.mulesoft.org/schema/mule/twilio/current/mule-twilio.xsd">
+	
+	<http:listener-config name="mf-mma-parking-management-sys-httpListenerConfig">
+        <http:listener-connection host="${httpListener.host}" port="${httpListener.port}" readTimeout="${httpListener.readTimeout}">
+			<reconnection >
+				<reconnect frequency="${httpListener.reconnection.frequency}" count="${httpListener.reconnection.attempts}" />
+			</reconnection>
+
+		</http:listener-connection>
+    </http:listener-config>
+	<api-gateway:autodiscovery apiId="${api.Id}" ignoreBasePath="true" doc:name="API Autodiscovery" doc:id="10d44b73-dfad-44b7-a93c-d224ed637074" flowRef="mainFlow" />
+	<apikit:config name="mf-mma-parking-management-sys-config" api="resource::d755d82c-094e-4235-a292-08e4acd85ad0:mf-mma-parking-management-sys-api:1.0.2:raml:zip:mf-mma-parking-management-sys.raml" outboundHeadersMapName="outboundHeaders" httpStatusVarName="httpStatus" />
+	<salesforce:sfdc-config name="Salesforce_Config" doc:name="Salesforce Config" doc:id="9b9bf1fd-d0e0-4172-9c79-255d4578eaaf" >
+		<salesforce:basic-connection username="${salesforce.username}" password="${secure::salesforce.password}" securityToken="${secure::salesforce.securityToken}" url="${salesforce.authUrl}" objectTTL="${salesforce.connection.ttl}" maxEntries="${salesforce.connection.maxEntry}" connectionTimeout="${salesforce.connection.timeout}" loginRequestTimeout="${salesforce.login.timeout}">
+			<reconnection >
+				<reconnect frequency="${salesforce.reconnection.frequency}" count="${salesforce.reconnection.attempts}" />
+			</reconnection>
+		</salesforce:basic-connection>
+	</salesforce:sfdc-config>
+	<secure-properties:config name="Secure_Properties_Config" doc:name="Secure Properties Config" doc:id="c000ed2f-c32c-4c65-a66d-d0633a262ca9" file="configurations/secure/secure.yaml" key="${security.key}" />
+	<configuration-properties doc:name="Configuration properties" doc:id="0b3058ab-99b0-475f-a6ba-6056cb833017" file="configurations/dev.yaml" />
+	<slack:config name="Slack_Connector_Config" doc:name="Slack Connector Config" doc:id="7f193bff-a702-428b-9a1b-3071ecb08392" responseTimeout="${slack.response.timeout}" responseTimeoutUnit="SECONDS">
+		<slack:slack-auth-connection baseUri="${slack.baseUri}" connectionTimeout="${slack.connection.timeout}" connectionIdleTimeout="${slack.connection.idleTimeout}">
+			<reconnection >
+				<reconnect frequency="${slack.reconnection.frequency}" count="${slack.reconnection.attempts}" />
+			</reconnection>
+			<slack:oauth-authorization-code consumerKey="${slack.consumerKey}" consumerSecret="${secure::slack.consumerSecret}" scopes="${slack.scopes}" authorizationUrl="${slack.authUrl}" accessTokenUrl="${slack.tokenUrl}"/>
+			<slack:oauth-callback-config listenerConfig="mf-mma-parking-management-sys-httpListenerConfig" callbackPath="${slack.oauthCallbackUrl}" authorizePath="${slack.oauthAuthUrl}" externalCallbackUrl="${slack.oauthExCallbackUrl}"/>
+		</slack:slack-auth-connection>
+	</slack:config>
+	<twilio:config name="Twilio_Connector_Config" doc:name="Twilio Connector Config" doc:id="63602f66-31a3-4b15-94bc-0984924acc30" >
+		<twilio:account-sid-auth-token-connection username="${twilio.username}" password="${secure::twilio.password}" baseUri="${twilio.baseUri}" protocol="HTTPS" connectionTimeout="${twilio.connection.timeout}">
+			<reconnection >
+				<reconnect frequency="${twilio.reconnection.frequency}" count="${twilio.reconnection.attempts}" />
+			</reconnection>
+			<twilio:default-headers >
+				<twilio:default-header key="Content-Type" value="application/x-www-form-urlencoded" />
+			</twilio:default-headers>
+		</twilio:account-sid-auth-token-connection>
+	</twilio:config>
+</mule>
